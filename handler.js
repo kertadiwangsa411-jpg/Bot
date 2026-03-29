@@ -31,39 +31,47 @@ export async function handler(sock, m) {
         const from = m.key.remoteJid;
         const isGroup = from.endsWith("@g.us");
         
-        // Penanganan ID Pengirim (Support LID)
-        const sender = isGroup 
-            ? (m.key.participant || m.participant || from) 
-            : (m.key.fromMe ? sock.user.id : from);
-
+        // Penanganan ID Pengirim (Support LID & Cleaning)
+        let sender = isGroup ? m.key.participant : m.key.remoteJid;
+        if (m.key.fromMe) sender = sock.user.id;
+        
+        // Bersihkan ID agar hanya angka saja (untuk pengecekan owner)
+        const senderNumber = sender.replace(/[^0-9]/g, "");
         const pushname = m.pushName || "User";
-        const isOwner = config.owner.some(ownerNum => sender.includes(ownerNum));
+        
+        // Cek Owner dengan lebih teliti
+        const isOwner = config.owner.some(ownerNum => senderNumber.includes(ownerNum.replace(/[^0-9]/g, "")));
 
-        // 3. LOGIKA PEMANGGILAN PLUGIN (FULL AUTO-LOAD)
-        if (!isCmd) return; // Jika bukan command, abaikan saja
+        // --- DEBUGGER (Lihat di terminal apakah pesan terbaca) ---
+        if (isCmd) {
+            console.log(`[ COMMAND ] From: ${pushname} (${senderNumber}) | Cmd: ${command}`);
+        }
+
+        // 3. LOGIKA PEMANGGILAN PLUGIN
+        if (!isCmd) return; 
 
         for (let name in global.plugins) {
             let plugin = global.plugins[name];
 
-            // Cek kecocokan command di file plugin
             if (plugin.command && (
                 Array.isArray(plugin.command) 
                 ? plugin.command.includes(command) 
                 : plugin.command === command
             )) {
                 
-                // Cek Izin Akses (Hanya Owner/Grup)
+                // Izin akses Owner
                 if (plugin.owner && !isOwner) {
                     await sock.sendMessage(from, { text: "❌ Fitur ini khusus Owner!" }, { quoted: m });
                     break;
                 }
 
+                // Izin akses Grup
                 if (plugin.group && !isGroup) {
                     await sock.sendMessage(from, { text: "❌ Fitur ini hanya untuk di dalam Grup!" }, { quoted: m });
                     break;
                 }
 
-                // Eksekusi fungsi utama di file plugin
+                // Eksekusi
                 await plugin.exec(sock, m, { 
                     command, 
                     args, 
@@ -76,7 +84,7 @@ export async function handler(sock, m) {
                     config 
                 });
                 
-                break; // Hentikan loop jika command sudah ditemukan dan dieksekusi
+                break; 
             }
         }
 
