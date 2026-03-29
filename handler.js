@@ -10,6 +10,8 @@ export async function handler(sock, m) {
 
         // 1. IDENTIFIKASI TIPE & ISI PESAN
         const type = Object.keys(m.message)[0];
+        
+        // Mengambil teks dari berbagai jenis chat
         const body = (
             type === 'conversation' ? m.message.conversation :
             type === 'extendedTextMessage' ? m.message.extendedTextMessage.text :
@@ -22,56 +24,63 @@ export async function handler(sock, m) {
         ) || '';
 
         // 2. SETUP VARIABEL DASAR
+        // Mencari prefix yang cocok dari config
         const prefix = config.prefix.find(p => body.startsWith(p)) || "";
-        const isCmd = body.startsWith(prefix);
-        const command = isCmd ? body.slice(prefix.length).trim().split(/ +/).shift().toLowerCase() : "";
+        const isCmd = body.startsWith(prefix) && prefix !== "";
+        
+        // Logika pemotongan command: menghapus prefix dan mengambil kata pertama
+        const command = isCmd 
+            ? body.slice(prefix.length).trim().split(/ +/).shift().toLowerCase() 
+            : "";
+            
         const args = body.trim().split(/ +/).slice(1);
         const text = args.join(" ");
         
         const from = m.key.remoteJid;
         const isGroup = from.endsWith("@g.us");
         
-        // Penanganan ID Pengirim (Support LID & Cleaning)
-        let sender = isGroup ? m.key.participant : m.key.remoteJid;
+        // Penanganan ID Pengirim (Support LID & Multi-device)
+        let sender = isGroup ? (m.key.participant || m.participant) : m.key.remoteJid;
         if (m.key.fromMe) sender = sock.user.id;
         
-        // Bersihkan ID agar hanya angka saja (untuk pengecekan owner)
-        const senderNumber = sender.replace(/[^0-9]/g, "");
+        // Bersihkan ID agar hanya angka saja untuk pengecekan config.owner
+        const senderNumber = sender.split('@')[0].split(':')[0]; 
         const pushname = m.pushName || "User";
         
-        // Cek Owner dengan lebih teliti
-        const isOwner = config.owner.some(ownerNum => senderNumber.includes(ownerNum.replace(/[^0-9]/g, "")));
+        // Cek status Owner
+        const isOwner = config.owner.some(ownerNum => senderNumber === ownerNum.replace(/[^0-9]/g, ""));
 
-        // --- DEBUGGER (Lihat di terminal apakah pesan terbaca) ---
+        // --- DEBUGGER TERMINAL ---
         if (isCmd) {
-            console.log(`[ COMMAND ] From: ${pushname} (${senderNumber}) | Cmd: ${command}`);
+            console.log(`\x1b[36m[ COMMAND ]\x1b[0m From: ${pushname} (${senderNumber}) | Cmd: ${command}`);
         }
 
         // 3. LOGIKA PEMANGGILAN PLUGIN
-        if (!isCmd) return; 
+        if (!isCmd || !command) return; 
 
         for (let name in global.plugins) {
             let plugin = global.plugins[name];
 
+            // Cek apakah plugin valid dan command-nya cocok
             if (plugin.command && (
                 Array.isArray(plugin.command) 
                 ? plugin.command.includes(command) 
                 : plugin.command === command
             )) {
                 
-                // Izin akses Owner
+                // Cek Izin Akses Owner
                 if (plugin.owner && !isOwner) {
                     await sock.sendMessage(from, { text: "❌ Fitur ini khusus Owner!" }, { quoted: m });
                     break;
                 }
 
-                // Izin akses Grup
+                // Cek Izin Akses Grup
                 if (plugin.group && !isGroup) {
                     await sock.sendMessage(from, { text: "❌ Fitur ini hanya untuk di dalam Grup!" }, { quoted: m });
                     break;
                 }
 
-                // Eksekusi
+                // Eksekusi Plugin
                 await plugin.exec(sock, m, { 
                     command, 
                     args, 
@@ -84,7 +93,7 @@ export async function handler(sock, m) {
                     config 
                 });
                 
-                break; 
+                break; // Stop loop jika sudah ketemu
             }
         }
 
