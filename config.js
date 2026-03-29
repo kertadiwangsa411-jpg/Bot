@@ -8,7 +8,7 @@ export const config = {
 
     // Daftar nomor owner (tulis tanpa simbol + atau spasi)
     // Masukkan nomor WhatsApp kamu di sini
-    owner: ["6282336479077", "628xxxxxx"], 
+    owner: ["6282336479077", "6281330029099"], 
 
     // Simbol awalan untuk menjalankan perintah
     prefix: ["!", ".", "/"], 
