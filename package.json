@@ -18,12 +18,12 @@
   "author": "Farhan Kertadiwangsa",
   "license": "MIT",
   "dependencies": {
-    "@thehackingguard/mahiru-baileys": "^latest",
+    "@thehackingguard/mahiru-baileys": "latest",
     "@hapi/boom": "^10.0.1",
     "pino": "^9.0.0",
     "qrcode-terminal": "^0.12.0",
-    "fs": "latest",
-    "path": "latest",
-    "url": "latest"
+    "fluent-ffmpeg": "^2.1.2",
+    "jimp": "^0.16.1",
+    "axios": "^1.6.0"
   }
 }
